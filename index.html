@@ -556,19 +556,22 @@ function makeOptions(q, rng) {
     const A = q.a, H = q.a / 2;
     add('sin ' + A + '°', A, []); add('2sin ' + A + '°', 2 * A + 'x', ['two']); add('sin ' + H + '°', H, ['ang']); add('cos ' + A + '°', 'c' + A, ['fn']);
   }
-  if (m === 'dbVal') {   // sinα（または cosα）と 鋭角か 鈍角か → sin2α を 求める 式
-    const [o, a, h] = TRI[q.t], s = fr(o, h), co = fr(a, h), cs = q.obt ? neg(co) : co, cw = q.obt ? co : neg(co);
-    add('2 × ' + s + ' × ' + cs, 1, []); add('2 × ' + s + ' × ' + cw, 2, ['sign']); add(s + ' × ' + cs, 3, ['two']); add('2 × ' + s, 4, ['keep']);
+  if (m === 'dbVal') {   // 連れ問 ①：sin2α を 求める ために 先に 求める もの（値の 計算は させない）
+    fixed = true;
+    add('cosα', 'cos', []); add('tanα', 'tan', ['need']); add('sin²α', 'sq', ['need']); add('α の 大きさ', 'ang', ['need']);
+  }
+  if (m === 'dbSign') {   // 連れ問 ②：cosα の 符号
+    fixed = true;
+    add('＋', 1, q.obt ? ['sign'] : []); add('−', -1, q.obt ? [] : ['sign']); add('±（決まらない）', 0, ['both']);
   }
   // 第2章 cos2α の 3つの 形
   if (m === 'c2Pick') {
     if (q.know === 'sin') { add('1 − 2sin²α', 1, []); add('2cos²α − 1', 2, ['other']); add('cos²α − sin²α', 3, ['both']); add('1 − sin²α', 4, ['naive']); }
     else { add('2cos²α − 1', 1, []); add('1 − 2sin²α', 2, ['other']); add('cos²α − sin²α', 3, ['both']); add('cos²α − 1', 4, ['naive']); }
   }
-  if (m === 'c2Num') {   // cosα（sinα）＝ {1|3} など → cos2α の 式
-    const v = fr(q.n, q.d), sq = '(' + v + ')²';
-    if (q.know === 'sin') { add('1 − 2 × ' + sq, 1, []); add('2 × ' + sq + ' − 1', 2, ['other']); add('1 − 2 × ' + v, 3, ['sq']); add('1 − ' + sq, 4, ['naive']); }
-    else { add('2 × ' + sq + ' − 1', 1, []); add('1 − 2 × ' + sq, 2, ['other']); add('2 × ' + v + ' − 1', 3, ['sq']); add(sq + ' − 1', 4, ['naive']); }
+  if (m === 'c2Num') {   // cosα（sinα）＝ {1|3} など → 使う 形（値を 入れた 式は 出さない）
+    if (q.know === 'sin') { add('1 − 2sin²α', 1, []); add('2cos²α − 1', 2, ['other']); add('1 − 2sinα', 3, ['sq']); add('cos²α − sin²α', 4, ['both']); }
+    else { add('2cos²α − 1', 1, []); add('1 − 2sin²α', 2, ['other']); add('2cosα − 1', 3, ['sq']); add('cos²α − sin²α', 4, ['both']); }
   }
   if (m === 'c2Eq') {   // 方程式：cos2θ を もう一方の 関数に そろえる
     if (q.with === 'sin') { add('1 − 2sin²θ', 1, []); add('2cos²θ − 1', 2, ['other']); add('cos²θ − sin²θ', 3, ['both']); add('2sinθ cosθ', 4, ['fn']); }
@@ -635,9 +638,10 @@ function texts(q) {
   const m = q.mode, T = {
     dbForm: () => [['▼ 倍角の 形', q.fn + '2α ＝ ？'], [q.fn + '2α を、α の 三角関数で 表せ。']],
     dbRev: () => [['▼ まとめる', '2sin ' + q.a / 2 + '° cos ' + q.a / 2 + '° ＝ ？'], ['2sin ' + q.a / 2 + '° cos ' + q.a / 2 + '° を 1つの 三角関数で 表せ。']],
-    dbVal: () => { const [o, a, h] = TRI[q.t], g = 'sinα ＝ ' + fr(o, h) + '（α は ' + (q.obt ? '鈍角' : '鋭角') + '）'; return [['▼ 式を えらべ', g + ' の とき、sin2α を 求める 式は？'], [(q.obt ? '{π|2} ＜ α ＜ π' : '0 ＜ α ＜ {π|2}') + ' で、sinα ＝ ' + fr(o, h) + ' の とき、sin2α の 値を 求めよ。']]; },
+    dbVal: () => { const [o, , h] = TRI[q.t], g = 'sinα ＝ ' + fr(o, h) + '（α は ' + (q.obt ? '鈍角' : '鋭角') + '）'; return [['▼ ① 先に 求めるのは？', g + ' の とき、sin2α を 求める。先に 求める ものは？'], [(q.obt ? '{π|2} ＜ α ＜ π' : '0 ＜ α ＜ {π|2}') + ' で、sinα ＝ ' + fr(o, h) + ' の とき、sin2α の 値を 求めよ。まず 何を 求めるか。']]; },
+    dbSign: () => [['▼ ② cosα の 符号は？', 'α は ' + (q.obt ? '鈍角（{π|2} ＜ α ＜ π）' : '鋭角（0 ＜ α ＜ {π|2}）') + '。cosα は ＋？ −？'], ['α は ' + (q.obt ? '{π|2} ＜ α ＜ π' : '0 ＜ α ＜ {π|2}') + ' で ある。cosα の 符号を 答えよ。']],
     c2Pick: () => [['▼ どの 形？', (q.know === 'sin' ? 'sinα' : 'cosα') + ' だけ わかって いる。cos2α を 求める 形は？'], [(q.know === 'sin' ? 'sinα' : 'cosα') + ' の 値が わかって いる とき、cos2α を 求める ために 使う 式を 選べ。']],
-    c2Num: () => { const g = (q.know === 'sin' ? 'sinα' : 'cosα') + ' ＝ ' + fr(q.n, q.d); return [['▼ 式を えらべ', g + ' の とき、cos2α を 求める 式は？'], [g + ' の とき、cos2α の 値を 求めよ。']]; },
+    c2Num: () => { const g = (q.know === 'sin' ? 'sinα' : 'cosα') + ' ＝ ' + fr(q.n, q.d); return [['▼ どの 形？', g + ' の とき、cos2α を 求める。使う 形は？'], [g + ' の とき、cos2α の 値を 求めよ。どの 形を 使うか。']]; },
     c2Eq: () => { const e = q.with === 'sin' ? 'cos2θ ＋ sinθ ＝ 0' : 'cos2θ ＋ cosθ ＝ 0'; return [['▼ そろえる', e + '。cos2θ を 何に 直す？'], ['0 ≦ θ ＜ 2π の とき、方程式 ' + e + ' を 解け。まず cos2θ を どの 式に 直すか。']]; },
     hfForm: () => [['▼ 次数を 下げる', q.fn + '²α ＝ ？'], [q.fn + '²α を cos2α を 使って 表せ。']],
     hfHalf: () => [['▼ 半角の 形', q.fn + '²' + fr('α', 2) + ' ＝ ？'], [q.fn + '²' + fr('α', 2) + ' を cosα を 使って 表せ。']],
@@ -657,7 +661,8 @@ function texts(q) {
 function reasonLines(q) {
   const m = q.mode, L = [], add = s => L.push(s);
   if (m === 'dbForm' || m === 'dbRev' || m === 'db4') { add('加法定理で β ＝ α に する → sin2α ＝ 2sinα cosα、cos2α ＝ cos²α − sin²α、tan2α ＝ ' + fr('2tanα', '1 − tan²α')); if (m === 'db4') add('4α ＝ 2 × 2α → α の ところを 2α に して 倍角'); if (m === 'dbRev') add('2sin x cos x ＝ sin2x → x ＝ ' + q.a / 2 + '°'); }
-  if (m === 'dbVal') { const [o, a, h] = TRI[q.t]; add('sin2α ＝ 2sinα cosα → cosα が いる'); add('sin²α ＋ cos²α ＝ 1 → cosα ＝ ±' + fr(a, h) + '。α が ' + (q.obt ? '鈍角 → cosα は 負' : '鋭角 → cosα は 正')); void o; }
+  if (m === 'dbVal') { add('sin2α ＝ 2sinα cosα → sinα は わかって いる → たりないのは cosα'); add('だから 先に cosα を 求める（sin²α ＋ cos²α ＝ 1）'); }
+  if (m === 'dbSign') { add('sin²α ＋ cos²α ＝ 1 から cosα ＝ ±（…）→ 符号は α の 範囲で 決まる'); add(q.obt ? '鈍角 → 単位円の 左がわ → cosα は −' : '鋭角 → 単位円の 右がわ → cosα は ＋'); }
   if (m === 'c2Pick' || m === 'c2Num' || m === 'c2Eq' || m === 'c2Mab') {
     add('cos2α ＝ cos²α − sin²α ＝ 1 − 2sin²α ＝ 2cos²α − 1（sin²α ＋ cos²α ＝ 1 で 片方に そろえる）');
     const k = m === 'c2Eq' || m === 'c2Mab' ? q.with : q.know;
@@ -705,7 +710,7 @@ NORM_CH.forEach(c => { if (c.mab) FORM_LV[c.mab.form] = c.lv; });
 const MONSTERS = [
   ['dbForm', 'フタバイ', '👯', 'sin2α ＝ 2sinα cosα（2 を わすれない）'],
   ['dbRev', 'マトメル', '🎁', '2sin x cos x ＝ sin2x'],
-  ['dbVal', 'フゴウミ', '🧭', 'cosα の 符号は 鋭角なら 正、鈍角なら 負'],
+  ['dbVal', 'フゴウミ', '🧭', 'sin2α は まず cosα。符号は 鋭角なら ＋、鈍角なら −'],
   ['c2Pick', 'ミツガタ', '🔺', 'sin だけ → 1 − 2sin²α、cos だけ → 2cos²α − 1'],
   ['c2Num', 'イレカエ', '🔢', 'わかって いる 方の 形に 値を 入れる'],
   ['c2Eq', 'ソロエ', '🧩', '方程式は もう一方の 関数に そろえる'],
@@ -773,17 +778,27 @@ function build(prm, rng, opt = {}) {
   }
   p.reason = reasonLines(q);
   if (p.exam) p.reason.push('この 問題は 第' + lv + '章の「' + p.shortText + '」と おなじ');
+  if (q.mode === 'dbVal') {   // 連れ問：① 先に 求めるのは cosα → ② cosα の 符号
+    const q2 = Object.assign({}, q, { mode: 'dbSign' }), [s2, e2] = texts(q2);
+    p.steps = [
+      { label: p.label, display: p.display, options: p.options, reason: p.reason },
+      { label: opt.boss ? '▼ 問題集の ことばで（②）' : s2[0], display: opt.boss ? e2[0] : s2[1], options: makeOptions(q2, rng), reason: reasonLines(q2) },
+    ];
+    if (opt.boss) p.steps[0].label = '▼ 問題集の ことばで（①）';
+    useStep(p, 0);
+  }
   return p;
 }
+function useStep(p, i) { const st = p.steps[i]; p.stepIdx = i; p.label = st.label; p.display = st.display; p.long = st.display.length > 26; p.options = st.options; p.reason = st.reason; return p; }
 function judge(p, ans) { return p.options[ans.opt].correct; }
 function classify(p, ans) { return { types: p.options[ans.opt].types.slice() }; }
 const TYPE_TEXT = {
   two: '係数の 2 が ちがう（2 を わすれた・よけいに つけた）', keep: 'α を 2倍に した だけで、加法定理を 使って いない', fn: 'sin と cos の 式が 入れかわって いる', sign: '＋ と − が はんたい', flip: '分母と 分子が 逆',
-  ang: '角が ちがう（半分・2倍の 関係を たしかめる）', other: 'わかって いない 方の 関数の 形を 使った', both: 'sin も cos も 使う 形（片方に そろえて いない）', naive: '2乗の 関係を 使って いない', sq: '2乗を わすれた',
+  ang: '角が ちがう（半分・2倍の 関係を たしかめる）', need: 'sin2α ＝ 2sinα cosα：たりないのは cosα', other: 'わかって いない 方の 関数の 形を 使った', both: 'sin も cos も 使う 形（片方に そろえて いない）', naive: '2乗の 関係を 使って いない', sq: '2乗を わすれた',
   swap: 'よこ（sinθ の 係数）と たて（cosθ の 係数）が 逆', nosqrt: '√ を わすれた（長さは √{よこ² ＋ たて²}）', add: 'よこと たてを 足した だけ（長さは 対角線）', mul: 'よこと たてを かけた だけ（長さは 対角線）', quad: '向きが ちがう（点の ある 象限を 見る）',
   scatter: 'えらびかたが ばらばら',
 };
-const MASTER_TEXT = { two: '係数の 2', keep: '倍角の 公式', fn: 'sin と cos', sign: '＋ と −', flip: '分母と 分子', ang: '角の 2倍・半分', other: 'そろえる 関数', both: '片方に そろえる', naive: '2乗の 関係', sq: '2乗',
+const MASTER_TEXT = { need: '先に 求める もの', two: '係数の 2', keep: '倍角の 公式', fn: 'sin と cos', sign: '＋ と −', flip: '分母と 分子', ang: '角の 2倍・半分', other: 'そろえる 関数', both: '片方に そろえる', naive: '2乗の 関係', sq: '2乗',
   swap: 'よこと たて', nosqrt: '長さの √', add: '長さ', mul: '長さ', quad: '角度の 向き' };
 function describe(p, cls) { return cls.types.map(t => TYPE_TEXT[t]).join('、'); }
 function masterText(t) { return MASTER_TEXT[t]; }
@@ -849,7 +864,7 @@ function record(ctx, p, ok, cls, ms, hinted) {
   return ev;
 }
 // 画面と おなじ しくみ（ヒント・連れ問は この ゲームには ない）
-const hasHint = () => false, hintParts = () => null, hintLines = () => [], useStep = p => p;
+const hasHint = () => false, hintParts = () => null, hintLines = () => [];
 G.QuestCore = {
   HAN, FIG, TRI, DEG, MAG, ANGLES, angStr, pointOf, exprOf, formStr, TAP, INTRO, DATA_V, migrateProg, migrateZk, hasHint, hintParts, hintLines, useStep,
   CHAPTERS, NORM_CH, FORM_LV, MONSTERS, monsterOf, zukanAfter, zukanCount, GEN, genPrm, makeOptions, build, judge, classify,
@@ -1162,7 +1177,7 @@ function stepOne(ok, cls) {
   state.reveal = true;
   if (ok) {
     state.phase = 'busy'; draw(); renderControls(); flashScreen();
-    setMessage('① せいかい！　' + q.ex + ' は きいろの ところ');
+    setMessage('① せいかい！　' + (q.ex ? q.ex + ' は きいろの ところ' : 'つぎは ②'));
     setTimeout(() => goStep2('つぎは ②'), 900);
     return;
   }
