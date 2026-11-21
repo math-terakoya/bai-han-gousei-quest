@@ -759,6 +759,9 @@ function zukanCount(zk) {
 }
 
 // ---------- 問題を つくる ----------
+// 合成の 大きさ：1回め（★0）は (√3, 1)・(1, 1) だけ、2回め（★1）は 整数の 入る 3・2 も、3回め（★2）は √6・√2 も（11-21 先生）。★3 の あとと さいごの 章は ぜんぶ
+const K_BY_PLAY = [[0], [0, 2], [0, 1, 2]];
+const kOf = (rng, play) => pick(rng, K_BY_PLAY[play] || [0, 1, 2]);
 const GEN = {
   dbForm: rng => ({ fn: pick(rng, ['sin', 'cos', 'tan']) }),
   dbRev: rng => ({ a: pick(rng, [30, 60, 90, 150]) }),   // 120° は sin 60° ＝ sin 120° で はずれが 正解と 同じ 値に なる
@@ -769,17 +772,17 @@ const GEN = {
   hfForm: rng => ({ fn: pick(rng, ['sin', 'cos']) }),
   hfHalf: rng => ({ fn: pick(rng, ['sin', 'cos']) }),
   hfVal: rng => ({ fn: pick(rng, ['sin', 'cos']), a: pick(rng, [15, 22.5, 75, 67.5]) }),
-  gPoint: rng => ({ u: pick(rng, ANGLES), k: ri(rng, 0, 2), cf: rng() < 0.3 }),
-  gLen: rng => ({ u: pick(rng, ANGLES), k: ri(rng, 0, 2), cf: rng() < 0.3 }),
-  gAng: rng => ({ u: pick(rng, ANGLES), k: ri(rng, 0, 2), cf: rng() < 0.3 }),
-  gForm: rng => ({ u: pick(rng, ANGLES), k: ri(rng, 0, 2), cf: rng() < 0.3 }),
+  gPoint: (rng, play) => ({ u: pick(rng, ANGLES), k: kOf(rng, play), cf: rng() < 0.3 }),
+  gLen: (rng, play) => ({ u: pick(rng, ANGLES), k: kOf(rng, play), cf: rng() < 0.3 }),
+  gAng: (rng, play) => ({ u: pick(rng, ANGLES), k: kOf(rng, play), cf: rng() < 0.3 }),
+  gForm: (rng, play) => ({ u: pick(rng, ANGLES), k: kOf(rng, play), cf: rng() < 0.3 }),
   mabDb4: rng => ({ mode: 'db4', fn: pick(rng, ['sin', 'cos']) }),
   mabC2: rng => ({ mode: 'c2Mab', with: pick(rng, ['sin', 'cos']) }),
   mabHf: rng => ({ mode: 'hfVal', fn: pick(rng, ['sin', 'cos']), a: pick(rng, [75, 67.5]) }),
   mabPoint: rng => ({ mode: 'gPoint', u: pick(rng, ANGLES.filter(u => u < 0 || Math.abs(u) > 6)), k: ri(rng, 0, 2), cf: true }),
   mabProv: rng => ({ mode: 'gProv', abr: pick(rng, [[3, 4, 5], [4, 3, 5], [5, 12, 13], [12, 5, 13]]) }),
 };
-function genPrm(form, rng) { const r = GEN[form](rng); return Object.assign({ mode: form }, r, { f: form, mode: r.mode || form }); }
+function genPrm(form, rng, play) { const r = GEN[form](rng, play); return Object.assign({ mode: form }, r, { f: form, mode: r.mode || form }); }
 
 function build(prm, rng, opt = {}) {
   const q = prm, form = q.f || q.mode, lv = FORM_LV[form];
@@ -847,14 +850,15 @@ function makeSlots(ch, rng, opt = {}) {
   const C = CHAPTERS[ch - 1], mid = [...Array(MID_HP).keys()].map(() => ({ lv: C.lv, boss: true }));
   if (C.final) return shuffle(rng, NORM_CH.map(c => c.lv)).map(lv => ({ lv, boss: true }));
   const play = opt.play === undefined ? ri(rng, 0, PLAYS - 1) : Math.min(opt.play, PLAYS - 1);
-  return C.plays[play].map(f => (f === 'MAB' ? { lv: C.lv, form: C.mab.form, mab: true } : { lv: C.lv, form: f })).concat(mid);
+  const k = opt.play === undefined ? undefined : play;   // ★3 の あとは 大きさを しぼらない
+  return C.plays[play].map(f => (f === 'MAB' ? { lv: C.lv, form: C.mab.form, mab: true } : { lv: C.lv, form: f })).concat(mid).map(s => Object.assign(s, { play: k }));
 }
 function newContext() { return { recent: [], weak: {}, log: [] }; }
 function makeProblem(slot, ctx, rng) {
   const w = ctx.weak[slot.lv];
   const forms = slot.form ? [slot.form] : CHAPTERS[slot.lv - 1].forms;
   const fresh = prm => !ctx.recent.includes(JSON.stringify(prm));
-  const gen = () => genPrm(pick(rng, forms), rng);
+  const gen = () => genPrm(pick(rng, forms), rng, slot.play);
   let prm = null, target = false;
   if (w) for (let i = 0; i < 400 && !prm; i++) { const c = gen(); if (likeOK(c, w.like, w.types) && fresh(c)) { prm = c; target = true; } }
   if (w) for (let i = 0; i < 400 && !prm; i++) { const c = gen(); if (likeOK(c, w.like, w.types)) { prm = c; target = true; } }   // 形が 少ない ときは 同じ 問題でも よい（もう一度 たしかめる）
